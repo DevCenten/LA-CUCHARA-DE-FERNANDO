@@ -1,0 +1,594 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>La Cuchara de Fernando: Menú Casero</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #FDFBF8; /* Crema claro/beige */
+            color: #4A4A4A; /* Gris oscuro para texto */
+        }
+        .bg-primary { background-color: #8C6D52; } /* Marrón cálido/ocre */
+        .text-primary { color: #8C6D52; }
+        .bg-secondary { background-color: #F3E9DC; } /* Crema/bronceado más claro */
+        .text-accent { color: #A8D5BA; } /* Verde suave */
+        .btn-main {
+            background-color: #A8D5BA;
+            color: #FFFFFF;
+            transition: background-color 0.3s ease;
+        }
+        .btn-main:hover {
+            background-color: #92b8a2;
+        }
+        .chart-container {
+            position: relative;
+            width: 100%;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            height: 300px;
+            max-height: 400px;
+        }
+        @media (min-width: 768px) {
+            .chart-container {
+                height: 350px;
+            }
+        }
+        .hidden { display: none; }
+    </style>
+</head>
+<body class="antialiased">
+
+    <header class="text-center py-16 px-4 bg-secondary shadow-md">
+        <h1 class="text-5xl md:text-7xl font-bold text-primary mb-4">La Cuchara de Fernando 🍜</h1>
+        <p class="text-lg md:text-xl max-w-3xl mx-auto text-gray-700">¡Comida casera con el sabor y cariño que se merecen!</p>
+        <!-- Imagen de chef Fernando -->
+        <img src="fer.png" alt="Chef Fernando cocinando" class="mx-auto mt-8 w-48 md:w-64 h-auto object-contain shadow-lg border-4 border-white rounded-lg">
+        <div class="mt-6 text-xl font-semibold text-gray-800">
+            ¡Delivery disponible! Costo de envío: <span class="text-accent">C$ 50</span>
+        </div>
+        <button id="admin-toggle-button" class="mt-8 px-4 py-2 text-sm bg-primary text-white rounded-md hover:bg-opacity-80">
+            Modo Admin
+        </button>
+    </header>
+
+    <main>
+        <!-- Vista del cliente -->
+        <section id="customer-view" class="py-16 px-4">
+            <div class="container mx-auto max-w-5xl text-center">
+                <h2 class="text-3xl font-bold mb-8 text-primary">Nuestro Menú de Hoy</h2>
+                <p class="text-lg mb-8 max-w-3xl mx-auto">Explora los deliciosos platos que Fernando ha preparado para ti. ¡Selecciona tus favoritos y haz tu pedido!</p>
+                
+                <div id="food-menu-list" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-12">
+                    <!-- Los platos se cargarán aquí con JavaScript desde Firestore -->
+                    <p id="loading-message" class="text-center text-gray-500 col-span-full">Cargando menú...</p>
+                </div>
+
+                <div class="bg-white p-6 rounded-lg shadow-lg max-w-lg mx-auto border border-gray-200">
+                    <h3 class="font-bold text-2xl mb-4 text-primary">Tu Pedido Actual:</h3>
+                    <ul id="order-summary" class="space-y-3 text-gray-700 mb-4">
+                        <li class="font-semibold text-gray-500">No hay platos seleccionados aún.</li>
+                    </ul>
+                    <div class="font-bold text-2xl mt-4 text-primary border-t pt-4 border-gray-200">Total: <span id="order-total">C$ 0</span></div>
+                    <button id="place-order-button" class="mt-6 w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center">
+                        <span class="mr-2">📲</span> Pedir por WhatsApp (Pago en Efectivo)
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Vista de administrador -->
+        <section id="admin-view" class="py-16 px-4 hidden">
+            <div class="container mx-auto max-w-5xl">
+                <h2 class="text-3xl font-bold mb-8 text-primary text-center">Administración del Menú</h2>
+                <p class="text-lg mb-8 max-w-3xl mx-auto text-center">Aquí puedes añadir, editar o eliminar los platos que ofreces en "La Cuchara de Fernando". ¡Tus cambios se verán al instante!</p>
+
+                <div class="bg-white p-6 rounded-lg shadow-lg mb-8">
+                    <h3 class="text-2xl font-bold mb-4 text-primary">Añadir / Editar Plato</h3>
+                    <form id="admin-food-form" class="space-y-4">
+                        <input type="hidden" id="food-id">
+                        <div>
+                            <label for="admin-food-name" class="block text-sm font-medium text-gray-700">Nombre del Plato</label>
+                            <input type="text" id="admin-food-name" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-accent focus:ring-accent" placeholder="Ej: Lasagna de Carne">
+                        </div>
+                        <div>
+                            <label for="admin-food-description" class="block text-sm font-medium text-gray-700">Descripción Breve</label>
+                            <input type="text" id="admin-food-description" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-accent focus:ring-accent" placeholder="Ej: Deliciosa lasagna casera con salsa boloñesa.">
+                        </div>
+                        <div>
+                            <label for="admin-food-price" class="block text-sm font-medium text-gray-700">Precio (C$)</label>
+                            <input type="number" id="admin-food-price" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-accent focus:ring-accent" placeholder="Ej: 120">
+                        </div>
+                        <div>
+                            <label for="admin-food-cover" class="block text-sm font-medium text-gray-700">Ícono/Imagen (Emoji o Breve Descripción)</label>
+                            <input type="text" id="admin-food-cover" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-accent focus:ring-accent" placeholder="Ej: 🍝 o 'plato de pasta'">
+                        </div>
+                        <button type="submit" class="w-full btn-main font-bold py-2 px-4 rounded-lg">
+                            Guardar Plato
+                        </button>
+                    </form>
+                </div>
+
+                <div class="bg-white p-6 rounded-lg shadow-lg">
+                    <h3 class="text-2xl font-bold mb-4 text-primary">Platos Actuales</h3>
+                    <div id="admin-menu-list" class="space-y-4">
+                        <p id="admin-loading-message" class="text-center text-gray-500">Cargando platos para administrar...</p>
+                        <!-- Los platos cargados desde Firestore con opciones de editar/eliminar -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Secciones comunes (visibles en ambos modos, para presentación) -->
+        <section id="como-pedir" class="py-16 px-4 bg-secondary">
+            <div class="container mx-auto max-w-5xl text-center">
+                <h2 class="text-3xl font-bold mb-4 text-primary">¿Cómo Funciona Tu Pedido?</h2>
+                <p class="text-lg mb-12 max-w-3xl mx-auto">Es simple, rápido y seguro. ¡Disfruta del sabor casero sin complicaciones!</p>
+                <div class="grid md:grid-cols-3 gap-8 text-center">
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <div class="text-4xl mb-3">👆</div>
+                        <h3 class="font-bold text-xl text-primary mb-2">1. Selecciona</h3>
+                        <p>Elige tus platos favoritos de nuestro menú actualizado.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <div class="text-4xl mb-3">💬</div>
+                        <h3 class="font-bold text-xl text-primary mb-2">2. Envía por WhatsApp</h3>
+                        <p>Haz clic en "Pedir por WhatsApp" y te enviaremos los detalles del pedido.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <div class="text-4xl mb-3">🚚</div>
+                        <h3 class="font-bold text-xl text-primary mb-2">3. Recibe y Paga</h3>
+                        <p>Te llevamos tu comida fresca. Paga en efectivo al momento de la entrega.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="ventajas-cliente" class="py-16 px-4">
+            <div class="container mx-auto max-w-5xl text-center">
+                <h2 class="text-3xl font-bold text-primary mb-4">Ventajas de Pedir con La Cuchara de Fernando</h2>
+                <p class="text-lg mb-8 max-w-3xl mx-auto">No solo es comida, es una experiencia de comodidad y sabor.</p>
+                <div class="grid md:grid-cols-2 gap-8 text-center">
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <div class="text-4xl mb-3">🏡</div>
+                        <h3 class="font-bold text-lg text-primary">Sabor Casero Genuino</h3>
+                        <p>Comida preparada con ingredientes frescos y el toque único de casa.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <div class="text-4xl mb-3">🔄</div>
+                        <h3 class="font-bold text-lg text-primary">Menú Siempre Actualizado</h3>
+                        <p>Siempre sabrás qué hay disponible hoy con solo un click en el enlace.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <div class="text-4xl mb-3">👍</div>
+                        <h3 class="font-bold text-lg text-primary">Fácil y Rápido</h3>
+                        <p>Desde la selección hasta el pedido por WhatsApp, todo diseñado para tu comodidad.</p>
+                    </div>
+                    <div class="bg-white p-6 rounded-lg shadow-md">
+                        <div class="text-4xl mb-3">💲</div>
+                        <h3 class="font-bold text-lg text-primary">Pago al Recibir</h3>
+                        <p>Comodidad total con la opción de pagar en efectivo al momento de la entrega.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section id="proyeccion" class="py-16 px-4 bg-secondary">
+            <div class="container mx-auto max-w-5xl text-center">
+                <h2 class="text-3xl font-bold text-primary mb-4">El Crecimiento de Tu Sabor</h2>
+                <p class="text-lg mb-8 max-w-3xl mx-auto">Esta app te ayudará a llegar a más clientes. Ajusta el deslizador para ver el potencial de aumentar tus pedidos semanales.</p>
+                
+                <div class="mb-8">
+                    <label for="order-increase" class="block font-medium mb-2">Aumento Esperado de Pedidos (%)</label>
+                    <input type="range" id="order-increase" min="0" max="100" value="25" class="w-full max-w-md mx-auto">
+                    <span id="order-increase-value" class="font-bold text-primary text-lg">25%</span>
+                </div>
+
+                <div class="chart-container">
+                    <canvas id="growthChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <footer class="bg-primary text-white text-center py-8 px-4">
+            <p class="font-bold text-xl mb-2">¡La Cuchara de Fernando: Tu Sabor!</p>
+            <p>Un proyecto de emprendimiento escolar "COLEGIO CAMILO ZAPATA" con el sabor de casa.</p>
+        </footer>
+    </main>
+
+    <script type="module">
+        // Importa las funciones de Firebase
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const customerView = document.getElementById('customer-view');
+            const adminView = document.getElementById('admin-view');
+            const adminToggleButton = document.getElementById('admin-toggle-button');
+            const foodMenuList = document.getElementById('food-menu-list');
+            const loadingMessage = document.getElementById('loading-message');
+            const orderSummaryList = document.getElementById('order-summary');
+            const orderTotalSpan = document.getElementById('order-total');
+            const placeOrderButton = document.getElementById('place-order-button');
+            const adminFoodForm = document.getElementById('admin-food-form');
+            const foodIdInput = document.getElementById('food-id');
+            const adminFoodNameInput = document.getElementById('admin-food-name');
+            const adminFoodDescriptionInput = document.getElementById('admin-food-description');
+            const adminFoodPriceInput = document.getElementById('admin-food-price');
+            const adminFoodCoverInput = document.getElementById('admin-food-cover');
+            const adminMenuList = document.getElementById('admin-menu-list');
+            const adminLoadingMessage = document.getElementById('admin-loading-message');
+            
+            let db, auth, userId;
+            let currentOrder = [];
+            let isAdminMode = false;
+            let authReady = false;
+
+            const DELIVERY_FEE = 50; // Costo de delivery en Córdobas
+
+            // =========================================================================
+            // === COMIENZO DE LA SECCIÓN FIREBASE ACTUALIZADA ===
+            // =========================================================================
+
+            // CONFIGURACIÓN DEL PROYECTO FIREBASE La-Cuchara-De-Fernando-V3
+            // ¡ESTOS SON LOS VALORES EXACTOS!
+            const firebaseConfig = {
+              apiKey: "AIzaSyAAnSECa1diclHwzJB2KtTPm76BC-Ag0W8",
+              authDomain: "la-cuchara-de-fernando-v3.firebaseapp.com",
+              projectId: "la-cuchara-de-fernando-v3",
+              storageBucket: "la-cuchara-de-fernando-v3.firebasestorage.app",
+              messagingSenderId: "453537318971",
+              appId: "1:453537318971:web:c7dfc8eca86f417a97741e"
+            };
+
+            // Estas variables se usarán para inicializar Firebase
+            const app = initializeApp(firebaseConfig);
+            db = getFirestore(app);
+            auth = getAuth(app);
+
+            // Variable para identificar la colección en Firestore (usamos el Project ID de V3)
+            const appIdForCollection = firebaseConfig.projectId; // Esto es correcto y apunta a V3
+            const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null; // Mantener esto
+
+
+            // =========================================================================
+            // === FIN DE LA SECCIÓN FIREBASE ACTUALIZADA ===
+            // =========================================================================
+
+            // 2. Autenticación (Fernando como admin, o clientes anónimos)
+            onAuthStateChanged(auth, async (user) => {
+                if (user) {
+                    userId = user.uid;
+                } else {
+                    try {
+                        if (initialAuthToken) {
+                            await signInWithCustomToken(auth, initialAuthToken);
+                            userId = auth.currentUser.uid;
+                        } else {
+                            await signInAnonymously(auth);
+                            userId = auth.currentUser.uid;
+                        }
+                    } catch (error) {
+                        console.error("Error signing in:", error);
+                        // Respaldo si falla la autenticación, tal vez un ID de usuario de demostración
+                        userId = 'anonymous_user_' + crypto.randomUUID(); 
+                    }
+                }
+                authReady = true;
+                // Asegura que db ya está inicializado y authReady es true antes de configurar listeners
+                if (db && authReady) { 
+                    setupFirestoreListeners();
+                }
+            });
+
+            // Manejo de la visibilidad de las vistas
+            adminToggleButton.addEventListener('click', () => {
+                // Simple password protection for admin mode
+                const password = prompt("Introduce la contraseña de administrador:");
+                if (password === 'fernando123') { // <-- ¡IMPORTANTE: CONTRASEÑA SEGURA!
+                    isAdminMode = !isAdminMode;
+                    if (isAdminMode) {
+                        customerView.classList.add('hidden');
+                        adminView.classList.remove('hidden');
+                        adminToggleButton.textContent = 'Modo Cliente';
+                        // Borrar el formulario de administración al cambiar al modo de administración
+                        adminFoodForm.reset();
+                        foodIdInput.value = '';
+                    } else {
+                        customerView.classList.remove('hidden');
+                        adminView.classList.add('hidden');
+                        adminToggleButton.textContent = 'Modo Admin';
+                    }
+                } else {
+                    alert("Contraseña incorrecta.");
+                }
+            });
+
+            // 3. Funciones de Renderizado para el Cliente
+            function renderMenu(items) {
+                loadingMessage.classList.add('hidden');
+                foodMenuList.innerHTML = '';
+                if (items.length === 0) {
+                    foodMenuList.innerHTML = '<p class="text-center text-gray-500 col-span-full">¡Ups! Parece que no hay platos disponibles hoy. ¡Vuelve pronto!</p>';
+                    return;
+                }
+                items.forEach(item => {
+                    const foodItemDiv = document.createElement('div');
+                    foodItemDiv.className = 'bg-white p-5 rounded-lg shadow-md flex flex-col items-center text-center transform hover:scale-105 transition-transform duration-200';
+                    foodItemDiv.innerHTML = `
+                        <div class="text-5xl mb-3">${item.cover || '🍽️'}</div>
+                        <h3 class="font-bold text-xl text-primary mb-1">${item.name}</h3>
+                        <p class="text-sm text-gray-600 mb-2 flex-grow">${item.description}</p>
+                        <span class="font-bold text-2xl text-accent mb-4">C$ ${item.price}</span>
+                        <button class="btn-main font-bold py-2 px-6 rounded-lg select-item" data-name="${item.name}" data-price="${item.price}">Seleccionar</button>
+                    `;
+                    foodMenuList.appendChild(foodItemDiv);
+
+                    foodItemDiv.querySelector('.select-item').addEventListener('click', (e) => {
+                        const selectedName = e.target.dataset.name;
+                        const selectedPrice = parseFloat(e.target.dataset.price);
+                        addItemToOrder(selectedName, selectedPrice);
+                    });
+                });
+            }
+
+            function addItemToOrder(name, price) {
+                const existingOrderItem = currentOrder.find(item => item.name === name);
+                if (existingOrderItem) {
+                    existingOrderItem.quantity++;
+                } else {
+                    currentOrder.push({ name, price, quantity: 1 });
+                }
+                updateOrderSummary();
+            }
+
+            function updateOrderSummary() {
+                orderSummaryList.innerHTML = '';
+                let subtotal = 0;
+
+                if (currentOrder.length === 0) {
+                    orderSummaryList.innerHTML = '<li class="font-semibold text-gray-500">No hay platos seleccionados aún.</li>';
+                } else {
+                    currentOrder.forEach(item => {
+                        const li = document.createElement('li');
+                        li.className = 'flex justify-between items-center bg-gray-100 p-2 rounded-md border border-gray-200';
+                        li.innerHTML = `
+                            <span>${item.name} (x${item.quantity})</span>
+                            <span>C$ ${item.price * item.quantity}</span>
+                            <button class="ml-2 text-red-500 hover:text-red-700 remove-item" data-name="${item.name}">🗑️</button>
+                        `;
+                        orderSummaryList.appendChild(li);
+                        subtotal += item.price * item.quantity;
+                    });
+                    // línea de tarifa de envío si hay artículos en el pedido
+                    const deliveryLi = document.createElement('li');
+                    deliveryLi.className = 'flex justify-between items-center bg-gray-100 p-2 rounded-md border border-gray-200 text-sm font-medium';
+                    deliveryLi.innerHTML = `
+                        <span>Costo de Envío</span>
+                        <span>C$ ${DELIVERY_FEE}</span>
+                    `;
+                    orderSummaryList.appendChild(deliveryLi);
+                }
+                
+                const total = subtotal + (currentOrder.length > 0 ? DELIVERY_FEE : 0);
+                orderTotalSpan.textContent = `C$ ${total}`;
+
+                orderSummaryList.querySelectorAll('.remove-item').forEach(button => {
+                    button.addEventListener('click', (e) => {
+                        const nameToRemove = e.target.dataset.name;
+                        removeItemFromOrder(nameToRemove);
+                    });
+                });
+            }
+
+            function removeItemFromOrder(name) {
+                currentOrder = currentOrder.filter(item => item.name !== name);
+                updateOrderSummary();
+            }
+
+            placeOrderButton.addEventListener('click', () => {
+                if (currentOrder.length === 0) {
+                    alert('Por favor, selecciona al menos un plato para hacer tu pedido.');
+                    return;
+                }
+
+                let orderDetails = "¡Hola Fernando! Me gustaría ordenar:\n";
+                currentOrder.forEach(item => {
+                    orderDetails += `- ${item.name} (x${item.quantity}) - C$ ${item.price * item.quantity}\n`;
+                });
+                orderDetails += `Costo de Envío: C$ ${DELIVERY_FEE}\n`;
+                orderDetails += `\nTotal: C$ ${parseFloat(orderTotalSpan.textContent.replace('C$ ', ''))}\n`;
+                orderDetails += "Pago en efectivo al momento de la entrega. ¡Gracias!";
+
+                // NUMERO_DE_WHATSAPP
+                const whatsappNumber = '50578519320'; // <-- ¡ESTE ES MI NUMERO PARA PRUEBAS... LUEGO PONDRÉ EL DE FERNANDO!
+                const whatsappUrl = `https://api.whatsapp.com/send?phone=${whatsappNumber}&text=${encodeURIComponent(orderDetails)}`;
+                window.open(whatsappUrl, '_blank');
+            });
+
+            // 4. Funciones de Administración para Fernando
+            // Asegúrate que db y auth estén inicializados antes de configurar el listener para el formulario
+            adminFoodForm.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const id = foodIdInput.value;
+                const name = adminFoodNameInput.value.trim();
+                const description = adminFoodDescriptionInput.value.trim();
+                const price = parseFloat(adminFoodPriceInput.value.trim());
+                const cover = adminFoodCoverInput.value.trim() || '🍽️';
+
+                if (name && description && !isNaN(price) && price > 0) {
+                    const itemData = { name, description, price, cover };
+                    try {
+                        if (id) {
+                            // Editar un plato existente
+                            const docRef = doc(db, `artifacts/${appIdForCollection}/public/data/fernando_menu`, id);
+                            await updateDoc(docRef, itemData);
+                            alert('Plato actualizado con éxito!');
+                        } else {
+                            // Añadir un plato nuevo
+                            await addDoc(collection(db, `artifacts/${appIdForCollection}/public/data/fernando_menu`), itemData);
+                            alert('Plato añadido con éxito!');
+                        }
+                        adminFoodForm.reset();
+                        foodIdInput.value = ''; // Limpiar ID oculto
+                    } catch (e) {
+                        console.error("Error al guardar el plato: ", e);
+                        alert("Error al guardar el plato. Inténtalo de nuevo.");
+                    }
+                } else {
+                    alert('Por favor, completa todos los campos correctamente.');
+                }
+            });
+
+            function renderAdminMenu(items) {
+                adminLoadingMessage.classList.add('hidden');
+                adminMenuList.innerHTML = '';
+                if (items.length === 0) {
+                    adminMenuList.innerHTML = '<p class="text-center text-gray-500">No hay platos en tu menú. ¡Añade uno!</p>';
+                    return;
+                }
+                items.forEach(item => {
+                    const li = document.createElement('div');
+                    li.className = 'flex items-center p-3 rounded-md bg-gray-50 shadow-sm border border-gray-200';
+                    li.innerHTML = `
+                        <div class="text-3xl mr-3">${item.cover || '🍽️'}</div>
+                        <div class="flex-grow">
+                            <h4 class="font-semibold text-lg">${item.name}</h4>
+                            <p class="text-sm text-gray-600">${item.description}</p>
+                            <span class="font-bold text-lg text-accent">C$ ${item.price}</span>
+                        </div>
+                        <button class="ml-auto bg-blue-500 hover:bg-blue-600 text-white text-sm py-1 px-3 rounded-md mr-2 edit-item" data-id="${item.id}">Editar</button>
+                        <button class="bg-red-500 hover:bg-red-600 text-white text-sm py-1 px-3 rounded-md delete-item" data-id="${item.id}">Eliminar</button>
+                    `;
+                    adminMenuList.appendChild(li);
+
+                    li.querySelector('.edit-item').addEventListener('click', () => {
+                        foodIdInput.value = item.id;
+                        adminFoodNameInput.value = item.name;
+                        adminFoodDescriptionInput.value = item.description;
+                        adminFoodPriceInput.value = item.price;
+                        adminFoodCoverInput.value = item.cover || '';
+                        adminFoodNameInput.focus();
+                    });
+
+                    li.querySelector('.delete-item').addEventListener('click', async () => {
+                        // confirmación aquí según las instrucciones para obtener comentarios sobre la interacción del usuario.
+                        if (confirm(`¿Estás seguro de que quieres eliminar "${item.name}"?`)) {
+                            try {
+                                await deleteDoc(doc(db, `artifacts/${appIdForCollection}/public/data/fernando_menu`, item.id));
+                                // No es necesario alertar ya que onSnapshot actualizará la interfaz de usuario
+                            } catch (e) {
+                                console.error("Error al eliminar el plato: ", e);
+                                alert("Error al eliminar el plato. Inténtalo de nuevo.");
+                            }
+                        }
+                    });
+                });
+            }
+            
+            // 5. Configurar Listeners de Firestore (onSnapshot)
+            function setupFirestoreListeners() {
+                if (!db || !authReady) {
+                    console.warn("Firestore or Auth not ready, skipping listeners setup.");
+                    return;
+                }
+
+                // Listener para el menú del cliente (en tiempo real)
+                onSnapshot(collection(db, `artifacts/${appIdForCollection}/public/data/fernando_menu`), (snapshot) => {
+                    const items = [];
+                    snapshot.forEach(doc => {
+                        items.push({ id: doc.id, ...doc.data() });
+                    });
+                    renderMenu(items);
+                    if (isAdminMode) {
+                        renderAdminMenu(items); // Si está en modo admin, también actualiza la lista de administración
+                    }
+                }, (error) => {
+                    console.error("Error al obtener el menú en tiempo real:", error);
+                    loadingMessage.textContent = 'Error al cargar el menú.';
+                });
+            }
+
+            // Gráfico de Proyección (igual que antes)
+            const ctx = document.getElementById('growthChart').getContext('2d');
+            const growthChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: ['Pedidos Semanales'],
+                    datasets: [{
+                        label: 'Pedidos Actuales',
+                        data: [50],
+                        backgroundColor: '#E0E0E0',
+                        borderColor: '#BDBDBD',
+                        borderWidth: 1
+                    }, {
+                        label: 'Pedidos con App',
+                        data: [62.5],
+                        backgroundColor: '#A8D5BA',
+                        borderColor: '#81C784',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: {
+                                callback: function(value) {
+                                    return value + ' pedidos';
+                                }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    let label = context.dataset.label || '';
+                                    if (label) {
+                                        label += ': ';
+                                    }
+                                    if (context.parsed.y !== null) {
+                                        label += Math.round(context.parsed.y) + ' pedidos';
+                                    }
+                                    return label;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            const orderIncreaseSlider = document.getElementById('order-increase');
+            const orderIncreaseValue = document.getElementById('order-increase-value');
+
+            orderIncreaseSlider.addEventListener('input', (e) => {
+                const percentageIncrease = parseInt(e.target.value);
+                orderIncreaseValue.textContent = `${percentageIncrease}%`;
+                
+                const baseOrders = 50;
+                const newOrders = baseOrders * (1 + (percentageIncrease / 100));
+                
+                growthChart.data.datasets[1].data[0] = newOrders;
+                growthChart.update();
+            });
+
+            updateOrderSummary();
+        });
+    </script>
+</body>
+</html>
